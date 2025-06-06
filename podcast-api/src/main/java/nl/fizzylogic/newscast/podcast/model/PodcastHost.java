@@ -8,6 +8,7 @@ public class PodcastHost extends PanacheEntity {
     public String name;
     public String styleInstructions;
     public String languagePatterns;
+    public String voiceId; // ElevenLabs voice ID for audio generation
     public int index; // The index to sort hosts by
 
     public static PodcastHostBuilder builder() {
@@ -16,6 +17,10 @@ public class PodcastHost extends PanacheEntity {
 
     public static PodcastHost findByIndex(int index) {
         return find("index", index).firstResult();
+    }
+
+    public static PodcastHost findByName(String name) {
+        return find("name", name).firstResult();
     }
 
     public static class PodcastHostBuilder {
@@ -37,6 +42,11 @@ public class PodcastHost extends PanacheEntity {
 
         public PodcastHostBuilder withLanguagePatterns(String languagePatterns) {
             host.languagePatterns = languagePatterns;
+            return this;
+        }
+
+        public PodcastHostBuilder withVoiceId(String voiceId) {
+            host.voiceId = voiceId;
             return this;
         }
 
