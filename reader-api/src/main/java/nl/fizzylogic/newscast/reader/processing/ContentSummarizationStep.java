@@ -3,6 +3,7 @@ package nl.fizzylogic.newscast.reader.processing;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Outgoing;
 
+import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.context.control.ActivateRequestContext;
 import jakarta.inject.Inject;
@@ -17,8 +18,9 @@ public class ContentSummarizationStep {
     @ActivateRequestContext
     @Incoming("content-summarizer-input")
     @Outgoing("content-summarizer-output")
-    public ContentSummarizationData process(ContentSummarizationData message) {
-        var contentSummary = summarizerAgent.summarizeContent(message.body);
-        return message.withSummary(contentSummary.title, contentSummary.summary);
+    public ContentSummarizationData process(JsonObject message) {
+        var contentSummarizationData = message.mapTo(ContentSummarizationData.class);
+        var contentSummary = summarizerAgent.summarizeContent(contentSummarizationData.body);
+        return contentSummarizationData.withSummary(contentSummary.title, contentSummary.summary);
     }
 }

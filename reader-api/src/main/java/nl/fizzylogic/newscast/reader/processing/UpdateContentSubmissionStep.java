@@ -4,6 +4,7 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.jboss.logging.Logger;
 
 import io.smallrye.graphql.client.GraphQLClientException;
+import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import nl.fizzylogic.newscast.reader.clients.content.ContentClient;
@@ -18,7 +19,9 @@ public class UpdateContentSubmissionStep {
     Logger logger = Logger.getLogger(UpdateContentSubmissionStep.class);
 
     @Incoming("content-submission-updater-input")
-    public void updateContentSubmission(ContentSummarizationData data) {
+    public void updateContentSubmission(JsonObject message) {
+        var data = message.mapTo(ContentSummarizationData.class);
+
         logger.infof(
                 "Updating content submission with ID: %d",
                 data.contentSubmissionId);

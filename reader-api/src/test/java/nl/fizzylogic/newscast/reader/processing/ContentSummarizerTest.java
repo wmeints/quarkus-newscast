@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.vertx.core.json.JsonObject;
 import jakarta.inject.Inject;
 import nl.fizzylogic.newscast.reader.model.ContentSummarizationData;
 import nl.fizzylogic.newscast.reader.model.ContentSummary;
@@ -31,7 +32,7 @@ public class ContentSummarizerTest {
         var processData = new ContentSummarizationData(
                 1L, "http://localhost:3000/", "test", "text/plain");
 
-        var result = contentSummarizer.process(processData);
+        var result = contentSummarizer.process(JsonObject.mapFrom(processData));
 
         assertNotNull(result);
         assertEquals("test", result.summary);

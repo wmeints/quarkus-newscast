@@ -14,4 +14,12 @@ public class CreateSpeechRequest {
 
     @JsonProperty("model_id")
     public String modelId;
+
+    public CreateSpeechRequest() {
+        // Default constructor for serialization
+    }
+
+    public CreateSpeechRequest(String text) {
+        this.text = text;
+    }
 }

@@ -36,7 +36,9 @@ jobs:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
-        
+    - name: Setup FFmpeg
+      uses: AnimMouse/setup-ffmpeg@v1
+
     - name: Run Maven build
       run: ./mvnw clean verify -Dquarkus.test.profile=test
       env:
@@ -44,7 +46,8 @@ jobs:
         QUARKUS_LANGCHAIN4J_AZURE_OPENAI_RESOURCE_NAME: ${{ secrets.QUARKUS_LANGCHAIN4J_AZURE_OPENAI_RESOURCE_NAME }}
         QUARKUS_LANGCHAIN4J_AZURE_OPENAI_DEPLOYMENT_NAME: ${{ secrets.QUARKUS_LANGCHAIN4J_AZURE_OPENAI_DEPLOYMENT_NAME }}
         QUARKUS_LANGCHAIN4J_AZURE_OPENAI_API_KEY: ${{ secrets.QUARKUS_LANGCHAIN4J_AZURE_OPENAI_API_KEY }}
-        
+        NEWSCAST_LOCATIONS_FFMPEG: ffmpeg
+
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
       with:

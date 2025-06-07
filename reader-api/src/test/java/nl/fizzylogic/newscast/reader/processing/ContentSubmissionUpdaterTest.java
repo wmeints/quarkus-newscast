@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.graphql.client.typesafe.api.ErrorOr;
+import io.vertx.core.json.JsonObject;
 import jakarta.inject.Inject;
 import nl.fizzylogic.newscast.reader.clients.content.ContentClient;
 import nl.fizzylogic.newscast.reader.clients.content.model.ContentSubmission;
@@ -31,7 +32,7 @@ public class ContentSubmissionUpdaterTest {
 
         processData = processData.withSummary("Test Title", "This is a test summary");
 
-        contentSubmissionUpdater.updateContentSubmission(processData);
+        contentSubmissionUpdater.updateContentSubmission(JsonObject.mapFrom(processData));
 
         verify(contentClient).summarizeContent(any());
     }

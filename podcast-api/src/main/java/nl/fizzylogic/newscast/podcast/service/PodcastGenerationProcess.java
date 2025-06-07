@@ -1,24 +1,24 @@
 package nl.fizzylogic.newscast.podcast.service;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jboss.logging.Logger;
 
 import io.quarkus.scheduler.Scheduled;
-import io.vertx.core.json.JsonObject;
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
 import jakarta.inject.Inject;
 import nl.fizzylogic.newscast.podcast.clients.content.ContentClient;
-import nl.fizzylogic.newscast.podcast.model.PodcastEpisodeData;
+import nl.fizzylogic.newscast.podcast.workflow.GeneratePodcastWorkflow;
+import nl.fizzylogic.newscast.podcast.workflow.GeneratePodcastWorkflowInput;
 
 public class PodcastGenerationProcess {
     @Inject
     ContentClient contentClient;
 
     @Inject
-    @Channel("podcast-generation-trigger-output")
-    Emitter<JsonObject> podcastGenerationTriggerOutput;
+    WorkflowClient workflowClient;
 
     Logger logger = Logger.getLogger(PodcastGenerationProcess.class);
 
@@ -38,10 +38,16 @@ public class PodcastGenerationProcess {
                     "Triggering podcast generation for submissions from %s to %s",
                     startDate, currentDate);
 
-            var generationTrigger = new PodcastEpisodeData(
-                    startDate, currentDate, processableSubmissions);
+            var workflowInput = new GeneratePodcastWorkflowInput(startDate, currentDate, processableSubmissions);
 
-            podcastGenerationTriggerOutput.send(JsonObject.mapFrom(generationTrigger));
+            var workflowOptions = WorkflowOptions.newBuilder()
+                    .setTaskQueue("<default>")
+                    .setWorkflowId(UUID.randomUUID().toString())
+                    .build();
+
+            var workflow = workflowClient.newWorkflowStub(GeneratePodcastWorkflow.class, workflowOptions);
+
+            WorkflowClient.start(workflow::generatePodcast, workflowInput);
         }
     }
 }
