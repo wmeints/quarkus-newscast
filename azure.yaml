@@ -1,0 +1,25 @@
+name: newscast
+metadata:
+  template: azd-init@1.17.0
+workflows:
+  up:
+    steps:
+      - azd: provision
+      - azd: deploy --all
+services:
+  content-api:
+    project: ./content-api
+    language: java
+    host: containerapp
+    docker:
+      path: ./src/main/docker/Dockerfile.jvm
+    hooks:
+      prebuild:
+        windows:
+          shell: pwsh
+          run: './mvnw "-DskipTests" clean package'
+        posix:
+          shell: sh
+          run: './mvnw -DskipTests clean package'
+
+    
