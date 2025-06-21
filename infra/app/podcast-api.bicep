@@ -12,6 +12,9 @@ param databaseServerAdminUsername string
 param databaseServerAdminPassword string
 param azureOpenAIAccountName string
 param storageAccountName string
+@secure()
+param buzzsproutApiKey string
+param buzzsproutPodcastId string
 
 var databaseUrl = 'jdbc:postgresql://${databaseServerDomainName}:5432/podcasts?sslmode=require'
 
@@ -74,6 +77,10 @@ resource applicationService 'Microsoft.App/containerApps@2025-01-01' = {
           name: 'storage-connection-string'
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
         }
+        {
+          name: 'buzzsprout-api-key'
+          value: buzzsproutApiKey
+        }
       ]
     }
     template: {
@@ -121,6 +128,14 @@ resource applicationService 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'AZURE_STORAGE_CONTAINER_NAME'
               value: 'episodes'
+            }
+            {
+              name: 'BUZZSPROUT_API_KEY'
+              secretRef: 'buzzsprout-api-key'
+            }
+            {
+              name: 'BUZZSPROUT_PODCAST_ID'
+              value: buzzsproutPodcastId
             }
           ]
         }

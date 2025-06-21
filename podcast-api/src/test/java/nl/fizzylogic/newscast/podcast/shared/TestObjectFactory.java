@@ -4,6 +4,7 @@ import java.util.List;
 
 import net.datafaker.Faker;
 import nl.fizzylogic.newscast.podcast.clients.content.model.ContentSubmission;
+import nl.fizzylogic.newscast.podcast.clients.content.model.PodcastEpisode;
 import nl.fizzylogic.newscast.podcast.clients.content.model.SubmissionStatus;
 import nl.fizzylogic.newscast.podcast.model.PodcastFragment;
 import nl.fizzylogic.newscast.podcast.model.PodcastScript;
@@ -41,5 +42,13 @@ public class TestObjectFactory {
         submission.status = SubmissionStatus.SUMMARIZED;
 
         return submission;
+    }
+
+    public static PodcastEpisode createPodcastEpisode() {
+        return new PodcastEpisode(
+                "Test episode",
+                "https://test.blob.core.windows.net/episodes/test-audio16895985858398394419.mp3",
+                "Test show notes",
+                "This is a test episode description.");
     }
 }

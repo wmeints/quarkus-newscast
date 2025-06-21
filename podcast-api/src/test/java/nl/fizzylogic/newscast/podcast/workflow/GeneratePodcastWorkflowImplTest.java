@@ -2,6 +2,7 @@ package nl.fizzylogic.newscast.podcast.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +20,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.worker.WorkerFactory;
 import jakarta.inject.Inject;
+import nl.fizzylogic.newscast.podcast.clients.content.model.PodcastEpisode;
 import nl.fizzylogic.newscast.podcast.shared.TestObjectFactory;
 
 @QuarkusTest
@@ -38,6 +40,9 @@ public class GeneratePodcastWorkflowImplTest {
     @InjectMock
     GeneratePodcastAudioActivities generatePodcastAudioActivities;
 
+    @InjectMock
+    BuzzsproutActivities buzzsproutActivities;
+
     @Test
     public void canRunWorkflowWithMockedActivities() {
         var script = TestObjectFactory.createPodcastScript();
@@ -45,6 +50,11 @@ public class GeneratePodcastWorkflowImplTest {
         when(generatePodcastScriptActivities.generatePodcastScript(any())).thenReturn(script);
         when(generatePodcastAudioActivities.generateSpeech(any())).thenReturn("data/test.mp3");
         when(generatePodcastAudioActivities.concatenateAudioFragments(any())).thenReturn("data/final.mp3");
+        when(generatePodcastAudioActivities.mixPodcastEpisode(any())).thenReturn("data/mixed.mp3");
+        when(contentMetadataActivities.savePodcastEpisode(any(), any(), any()))
+                .thenReturn(new PodcastEpisode());
+        when(buzzsproutActivities.publishPodcastEpisode(anyInt(), anyInt(), any(), any(), any(), any()))
+                .thenReturn("12345");
 
         WorkflowOptions workflowOptions = WorkflowOptions.newBuilder()
                 .setTaskQueue("<default>")
@@ -70,8 +80,10 @@ public class GeneratePodcastWorkflowImplTest {
         verify(generatePodcastScriptActivities).generatePodcastScript(any());
         verify(generatePodcastAudioActivities, times(2)).generateSpeech(any());
         verify(generatePodcastAudioActivities).concatenateAudioFragments(fragmentsArgumentCapture.capture());
+        verify(generatePodcastAudioActivities).mixPodcastEpisode(any());
         verify(contentMetadataActivities).lockContentSubmissions(lockedContentSubmissions.capture());
-        verify(contentMetadataActivities).savePodcastEpisode(any(), any(), any(), any(), any());
+        verify(contentMetadataActivities).savePodcastEpisode(any(), any(), any());
+        verify(buzzsproutActivities).publishPodcastEpisode(anyInt(), anyInt(), any(), any(), any(), any());
         verify(contentMetadataActivities).markContentSubmissionsAsProcessed(processedContentSubmissions.capture());
 
         assertEquals(2, fragmentsArgumentCapture.getValue().size(),
@@ -92,6 +104,12 @@ public class GeneratePodcastWorkflowImplTest {
         when(generatePodcastAudioActivities.generateSpeech(any())).thenReturn("data/test.mp3");
         when(generatePodcastAudioActivities.concatenateAudioFragments(any())).thenReturn("data/final.mp3");
         when(generatePodcastAudioActivities.mixPodcastEpisode(any())).thenReturn("data/mixed.mp3");
+        when(contentMetadataActivities.savePodcastEpisode(any(), any(), any()))
+                .thenReturn(new PodcastEpisode("Test Title",
+                        "https://test.blob.core.windows.net/episodes/test.mp3",
+                        "Test show notes", "Test description"));
+        when(buzzsproutActivities.publishPodcastEpisode(anyInt(), anyInt(), any(), any(), any(), any()))
+                .thenReturn("12345");
 
         WorkflowOptions workflowOptions = WorkflowOptions.newBuilder()
                 .setTaskQueue("<default>")
@@ -106,7 +124,7 @@ public class GeneratePodcastWorkflowImplTest {
         var submission1 = TestObjectFactory.createSummarizedSubmission();
         submission1.title = "First Tech Article";
         submission1.url = "https://example.com/first-article";
-        
+
         var submission2 = TestObjectFactory.createSummarizedSubmission();
         submission2.title = "Second Tech Article";
         submission2.url = "https://example.com/second-article";
@@ -121,37 +139,11 @@ public class GeneratePodcastWorkflowImplTest {
         // Capture the savePodcastEpisode call to verify show notes and description
         var titleCaptor = ArgumentCaptor.forClass(String.class);
         var audioFileCaptor = ArgumentCaptor.forClass(String.class);
-        var showNotesCaptor = ArgumentCaptor.forClass(String.class);
-        var descriptionCaptor = ArgumentCaptor.forClass(String.class);
         var submissionsCaptor = ArgumentCaptor.forClass(List.class);
 
         verify(contentMetadataActivities).savePodcastEpisode(
                 titleCaptor.capture(),
                 audioFileCaptor.capture(),
-                showNotesCaptor.capture(),
-                descriptionCaptor.capture(),
                 submissionsCaptor.capture());
-
-        // Verify show notes content
-        String showNotes = showNotesCaptor.getValue();
-        assertEquals(true, showNotes.contains("In this episode, we cover:"), 
-                "Show notes should contain episode introduction");
-        assertEquals(true, showNotes.contains("First Tech Article"), 
-                "Show notes should contain first article title");
-        assertEquals(true, showNotes.contains("https://example.com/first-article"), 
-                "Show notes should contain first article URL");
-        assertEquals(true, showNotes.contains("Second Tech Article"), 
-                "Show notes should contain second article title");
-        assertEquals(true, showNotes.contains("https://example.com/second-article"), 
-                "Show notes should contain second article URL");
-
-        // Verify description content
-        String description = descriptionCaptor.getValue();
-        assertEquals(true, description.contains("This episode covers the latest developments"), 
-                "Description should contain episode overview");
-        assertEquals(true, description.contains("first tech article"), 
-                "Description should contain first article (lowercase)");
-        assertEquals(true, description.contains("second tech article"), 
-                "Description should contain second article (lowercase)");
     }
 }

@@ -15,7 +15,8 @@ The podcast generation process follows these main steps:
 5. **Audio Generation**: Text-to-speech conversion generates audio for each script fragment using configured host voices
 6. **Audio Processing**: Individual audio fragments are concatenated and mixed into a final episode
 7. **Publication**: The completed episode is saved with metadata (title, show notes, description) and uploaded to blob storage
-8. **Cleanup**: Processed content submissions are marked as completed
+8. **Buzzsprout Publishing**: The episode is automatically published to Buzzsprout podcast hosting platform
+9. **Cleanup**: Processed content submissions are marked as completed
 
 ### Activity Diagram
 
@@ -33,11 +34,12 @@ flowchart TD
     J --> K[Build Show Notes and Description]
     K --> L[Save Podcast Episode to Storage]
     L --> M[Upload Episode Metadata]
-    M --> N[Mark Content Submissions as Processed]
-    N --> O[End - Episode Published]
+    M --> N[Publish Episode to Buzzsprout]
+    N --> O[Mark Content Submissions as Processed]
+    O --> P[End - Episode Published]
     
     style A fill:#e1f5fe
-    style O fill:#c8e6c9
+    style P fill:#c8e6c9
     style D fill:#ffecb3
 ```
 
@@ -48,6 +50,7 @@ flowchart TD
 - **Script Generation**: Leverages Azure OpenAI to create conversational content between configured podcast hosts
 - **Audio Generation**: Uses ElevenLabs API with voice clones for each podcast host
 - **Storage**: Episodes are stored in Azure Blob Storage with episode metadata in the content database
+- **Podcast Publishing**: Episodes are automatically published to Buzzsprout podcast hosting platform
 - **Error Handling**: Each activity has configured retry policies for resilience against transient failures
 
 The workflow ensures reliable podcast generation while handling failures gracefully through Temporal's built-in retry and recovery mechanisms.

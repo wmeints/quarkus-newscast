@@ -8,12 +8,14 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.workflow.Workflow;
 import nl.fizzylogic.newscast.podcast.clients.content.model.ContentSubmission;
+import nl.fizzylogic.newscast.podcast.clients.content.model.PodcastEpisode;
 import nl.fizzylogic.newscast.podcast.model.PodcastScript;
 
 public class GeneratePodcastWorkflowImpl implements GeneratePodcastWorkflow {
     private final ContentMetadataActivities contentMetadataActivities;
     private final GeneratePodcastScriptActivities podcastScriptGenerationActivities;
     private final GeneratePodcastAudioActivities generatePodcastAudioActivities;
+    private final BuzzsproutActivities buzzsproutActivities;
 
     public GeneratePodcastWorkflowImpl() {
         var contentMetadataActivityOptions = ActivityOptions.newBuilder()
@@ -39,6 +41,14 @@ public class GeneratePodcastWorkflowImpl implements GeneratePodcastWorkflow {
                 .setRetryOptions(podcastAudioGenerationRetryOptions)
                 .build();
 
+        var buzzsproutActivityOptions = ActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofMinutes(5))
+                .setRetryOptions(RetryOptions.newBuilder()
+                        .setMaximumAttempts(3)
+                        .setInitialInterval(Duration.ofSeconds(30))
+                        .build())
+                .build();
+
         contentMetadataActivities = Workflow.newActivityStub(
                 ContentMetadataActivities.class,
                 contentMetadataActivityOptions);
@@ -50,6 +60,10 @@ public class GeneratePodcastWorkflowImpl implements GeneratePodcastWorkflow {
         generatePodcastAudioActivities = Workflow.newActivityStub(
                 GeneratePodcastAudioActivities.class,
                 podcastAudioGenerationActivityOptions);
+
+        buzzsproutActivities = Workflow.newActivityStub(
+                BuzzsproutActivities.class,
+                buzzsproutActivityOptions);
     }
 
     @Override
@@ -85,59 +99,22 @@ public class GeneratePodcastWorkflowImpl implements GeneratePodcastWorkflow {
 
         // Save the podcast episode with the generated audio file and the included
         // content submissions.
-        String showNotes = buildShowNotes(input.contentSubmissions);
-        String description = buildDescription(input.contentSubmissions);
-        
-        contentMetadataActivities.savePodcastEpisode(
+        PodcastEpisode episodeMetadata = contentMetadataActivities.savePodcastEpisode(
                 script.title,
                 finalAudioFile,
-                showNotes,
-                description,
                 input.contentSubmissions);
+
+        // Publish the podcast episode to Buzzsprout
+        buzzsproutActivities.publishPodcastEpisode(
+                1, episodeMetadata.episodeNumber,
+                script.title,
+                episodeMetadata.description,
+                episodeMetadata.showNotes,
+                episodeMetadata.audioFilePath);
 
         // Mark the content submissions as processed.
         // Other workflow triggers can't pick them up anymore.
         contentMetadataActivities.markContentSubmissionsAsProcessed(input.contentSubmissions);
-    }
-
-    private String buildShowNotes(List<ContentSubmission> contentSubmissions) {
-        StringBuilder showNotes = new StringBuilder();
-        showNotes.append("In this episode, we cover:\n\n");
-        
-        for (ContentSubmission submission : contentSubmissions) {
-            if (submission.title != null && !submission.title.isEmpty()) {
-                showNotes.append("• ").append(submission.title);
-                if (submission.url != null && !submission.url.isEmpty()) {
-                    showNotes.append(" (").append(submission.url).append(")");
-                }
-                showNotes.append("\n");
-            }
-        }
-        
-        return showNotes.toString();
-    }
-
-    private String buildDescription(List<ContentSubmission> contentSubmissions) {
-        StringBuilder description = new StringBuilder();
-        description.append("This episode covers the latest developments in technology and software engineering. ");
-        description.append("We discuss ");
-        
-        if (!contentSubmissions.isEmpty()) {
-            for (int i = 0; i < contentSubmissions.size(); i++) {
-                ContentSubmission submission = contentSubmissions.get(i);
-                if (submission.title != null && !submission.title.isEmpty()) {
-                    if (i > 0 && i == contentSubmissions.size() - 1) {
-                        description.append(" and ");
-                    } else if (i > 0) {
-                        description.append(", ");
-                    }
-                    description.append(submission.title.toLowerCase());
-                }
-            }
-            description.append(".");
-        }
-        
-        return description.toString();
     }
 
     @Override

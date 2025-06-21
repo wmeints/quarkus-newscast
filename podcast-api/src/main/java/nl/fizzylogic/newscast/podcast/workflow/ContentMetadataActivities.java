@@ -5,6 +5,7 @@ import java.util.List;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import nl.fizzylogic.newscast.podcast.clients.content.model.ContentSubmission;
+import nl.fizzylogic.newscast.podcast.clients.content.model.PodcastEpisode;
 
 @ActivityInterface
 public interface ContentMetadataActivities {
@@ -15,6 +16,5 @@ public interface ContentMetadataActivities {
     void markContentSubmissionsAsProcessed(List<ContentSubmission> contentSubmissions);
 
     @ActivityMethod
-    void savePodcastEpisode(String title, String audioFilePath, String showNotes, String description,
-            List<ContentSubmission> contentSubmissions);
+    PodcastEpisode savePodcastEpisode(String title, String audioFilePath, List<ContentSubmission> contentSubmissions);
 }
