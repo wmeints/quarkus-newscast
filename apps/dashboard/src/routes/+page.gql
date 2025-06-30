@@ -1,0 +1,13 @@
+query dashboard {
+    statistics {
+        totalEpisodes
+        submissionsLastWeek 
+    }
+    recentSubmissions {
+        id
+        title
+        dateCreated
+        summary
+        url
+    }
+}

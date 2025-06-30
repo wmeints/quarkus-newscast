@@ -1,0 +1,118 @@
+"""Indicates a Bean Validation constraint"""
+directive @constraint(format: String, max: BigInteger, maxFloat: BigDecimal, maxLength: Int, min: BigInteger, minFloat: BigDecimal, minLength: Int, pattern: String) on ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
+
+"""Indicates an Input Object is a OneOf Input Object."""
+directive @oneOf on INPUT_OBJECT
+
+"""
+Used to specify the role required to execute a given field or operation.
+"""
+directive @rolesAllowed(value: String) on FIELD_DEFINITION
+
+type ApplicationStatistics {
+  submissionsLastWeek: BigInteger!
+  totalEpisodes: BigInteger!
+}
+
+"""Scalar for BigDecimal"""
+scalar BigDecimal
+
+"""Scalar for BigInteger"""
+scalar BigInteger
+
+type ContentSubmission {
+  """ISO-8601"""
+  dateCreated: DateTime
+
+  """ISO-8601"""
+  dateModified: DateTime
+  id: BigInteger!
+  status: SubmissionStatus
+  summary: String
+  title: String
+  url: String
+}
+
+input CreatePodcastEpisodeInput {
+  audioFile: String
+  description: String
+  showNotes: String
+  title: String
+}
+
+"""Scalar for DateTime"""
+scalar DateTime
+
+input MarkAsProcessedInput {
+  id: BigInteger!
+}
+
+input MarkForProcessingInput {
+  id: BigInteger!
+}
+
+"""Mutation root"""
+type Mutation {
+  """Creates a new podcast episode"""
+  createPodcastEpisode(input: CreatePodcastEpisodeInput): PodcastEpisode
+
+  """Marks a content submission as processed"""
+  markAsProcessed(input: MarkAsProcessedInput): ContentSubmission
+
+  """Marks a content submission for processing"""
+  markForProcessing(input: MarkForProcessingInput): ContentSubmission
+
+  """Submits content for processing"""
+  submitContent(input: SubmitContentInput): ContentSubmission
+
+  """Updates a content submission with a summary"""
+  summarizeContent(input: SummarizeContentInput): ContentSubmission
+}
+
+type PodcastEpisode {
+  audioFilePath: String
+
+  """ISO-8601"""
+  dateCreated: DateTime
+  description: String
+  episodeNumber: Int!
+  id: BigInteger!
+  script: String
+  showNotes: String
+  title: String
+}
+
+"""Query root"""
+type Query {
+  """Finds all podcast episodes"""
+  episodes: [PodcastEpisode]
+
+  """Finds processable content submissions for the current week"""
+  processableSubmissions: [ContentSubmission]
+
+  """Finds the content submissions that were created during the week"""
+  recentSubmissions: [ContentSubmission]
+
+  """Get statistics about the application"""
+  statistics: ApplicationStatistics
+
+  """Finds all content submissions"""
+  submissions(pageIndex: Int!, pageSize: Int!): [ContentSubmission]
+}
+
+enum SubmissionStatus {
+  PROCESSED
+  PROCESSING
+  SUBMITTED
+  SUMMARIZED
+}
+
+input SubmitContentInput {
+  url: String
+}
+
+input SummarizeContentInput {
+  id: BigInteger!
+  summary: String
+  title: String
+}

@@ -3,11 +3,7 @@ package nl.infosupport.agenttalks.content.graph;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.List;
 
@@ -25,7 +21,7 @@ import nl.infosupport.agenttalks.content.graph.input.SubmitContent;
 import nl.infosupport.agenttalks.content.graph.input.SummarizeContent;
 import nl.infosupport.agenttalks.content.model.ContentSubmission;
 import nl.infosupport.agenttalks.content.model.PodcastEpisode;
-import nl.infosupport.agenttalks.content.service.ContentSubmissions;
+import nl.infosupport.agenttalks.content.model.SubmissionStatus;
 
 @QuarkusTest
 public class ContentGraphTest {
@@ -33,110 +29,258 @@ public class ContentGraphTest {
     private ContentGraph contentGraph;
 
     @InjectMock
-    private ContentSubmissions contentSubmissions;
-
-    @InjectMock
     private EventPublisher eventPublisher;
 
     @Test
     @Transactional
     public void canSubmitContent() {
-        ContentSubmission contentSubmission = new ContentSubmission("http://localhost:3000/");
-        contentSubmission.id = 1L; // Simulate an ID being assigned
+        // Act
+        ContentSubmission result = contentGraph.submitContent(new SubmitContent("https://example.com/article"));
 
-        when(contentSubmissions.submitContent(anyString()))
-                .thenReturn(contentSubmission);
-
-        contentGraph.submitContent(new SubmitContent("http://localhost:3000/"));
-
-        verify(contentSubmissions).submitContent(eq("http://localhost:3000/"));
+        // Assert
+        assertNotNull(result);
+        assertEquals("https://example.com/article", result.url);
+        assertEquals(SubmissionStatus.SUBMITTED, result.status);
+        assertNotNull(result.dateCreated);
         verify(eventPublisher).publishContentSubmissionCreated(any());
     }
 
     @Test
     @Transactional
     public void canFindSubmissions() {
-        List<ContentSubmission> submissions = List.of(
-                new ContentSubmission("http://localhost:3000/"),
-                new ContentSubmission("http://localhost:3000/2"));
+        // Arrange - Create test submissions
+        ContentSubmission submission1 = TestObjectFactory.createSubmittedContentSubmission();
+        ContentSubmission submission2 = TestObjectFactory.createSummarizedContentSubmission();
 
-        when(contentSubmissions.findAll()).thenReturn(submissions);
+        submission1.persistAndFlush();
+        submission2.persistAndFlush();
 
-        List<ContentSubmission> result = contentGraph.submissions();
+        // Act
+        List<ContentSubmission> result = contentGraph.submissions(0, 10);
 
+        // Assert
+        assertNotNull(result);
         assertEquals(2, result.size());
-        verify(contentSubmissions).findAll();
+    }
+
+    @Test
+    @Transactional
+    public void canFindRecentSubmissions() {
+        // Arrange - Create test submissions
+        ContentSubmission submission1 = new ContentSubmission.Builder()
+                .withUrl("https://example.com/recent1")
+                .withStatus(SubmissionStatus.SUBMITTED)
+                .build();
+        ContentSubmission submission2 = new ContentSubmission.Builder()
+                .withUrl("https://example.com/recent2")
+                .withTitle("Recent Article 2")
+                .withSummary("Summary for recent article 2")
+                .withStatus(SubmissionStatus.SUMMARIZED)
+                .build();
+
+        submission1.persistAndFlush();
+        submission2.persistAndFlush();
+
+        // Act
+        List<ContentSubmission> result = contentGraph.recentSubmissions();
+
+        // Assert
+        assertNotNull(result);
+    }
+
+    @Test
+    @Transactional
+    public void canFindProcessableSubmissions() {
+        // Arrange - Create test submissions
+        ContentSubmission submission1 = new ContentSubmission.Builder()
+                .withUrl("https://example.com/processable1")
+                .withTitle("Processable Article 1")
+                .withSummary("Summary for processable article 1")
+                .withStatus(SubmissionStatus.SUMMARIZED)
+                .build();
+        ContentSubmission submission2 = new ContentSubmission.Builder()
+                .withUrl("https://example.com/processable2")
+                .withTitle("Processable Article 2")
+                .withSummary("Summary for processable article 2")
+                .withStatus(SubmissionStatus.SUMMARIZED)
+                .build();
+
+        submission1.persistAndFlush();
+        submission2.persistAndFlush();
+
+        // Act
+        List<ContentSubmission> result = contentGraph.processableSubmissions();
+
+        // Assert
+        assertNotNull(result);
     }
 
     @Test
     @Transactional
     public void canSummarizeContent() {
-        ContentSubmission contentSubmission = new ContentSubmission("http://localhost:3000/");
+        // Arrange
+        ContentSubmission submission = new ContentSubmission.Builder()
+                .withUrl("https://example.com/test")
+                .withStatus(SubmissionStatus.SUBMITTED)
+                .build();
+        submission.persistAndFlush();
 
-        when(contentSubmissions.summarizeContent(anyLong(), anyString(), anyString()))
-                .thenReturn(contentSubmission);
+        SummarizeContent input = new SummarizeContent(
+                submission.id,
+                "Updated Test Title",
+                "This is an updated test summary with more detailed information.");
 
-        ContentSubmission result = contentGraph.summarizeContent(
-                new SummarizeContent(1L, "test", "test"));
+        // Act
+        ContentSubmission result = contentGraph.summarizeContent(input);
 
+        // Assert
         assertNotNull(result);
-        verify(contentSubmissions).summarizeContent(1L, "test", "test");
+        assertEquals("Updated Test Title", result.title);
+        assertEquals("This is an updated test summary with more detailed information.", result.summary);
+        assertEquals(SubmissionStatus.SUMMARIZED, result.status);
+        assertNotNull(result.dateModified);
     }
 
     @Test
     @Transactional
     public void canMarkContentForProcessing() {
-        ContentSubmission contentSubmission = new ContentSubmission("http://localhost:3000/");
-        when(contentSubmissions.markForProcessing(anyLong())).thenReturn(contentSubmission);
+        // Arrange
+        ContentSubmission submission = TestObjectFactory.createSummarizedContentSubmission();
+        submission.persistAndFlush();
 
-        ContentSubmission result = contentGraph.markForProcessing(new MarkForProcessing(1L));
+        // Act
+        ContentSubmission result = contentGraph.markForProcessing(new MarkForProcessing(submission.id));
 
-        assertEquals(contentSubmission, result);
-        verify(contentSubmissions).markForProcessing(eq(1L));
+        // Assert
+        assertNotNull(result);
+        assertEquals(SubmissionStatus.PROCESSING, result.status);
+        assertNotNull(result.dateModified);
     }
 
     @Test
     @Transactional
     public void canMarkContentAsProcessed() {
-        ContentSubmission contentSubmission = new ContentSubmission("http://localhost:3000/");
-        when(contentSubmissions.markAsProcessed(anyLong())).thenReturn(contentSubmission);
+        // Arrange
+        ContentSubmission submission = TestObjectFactory.createSummarizedContentSubmission();
+        submission.markForProcessing();
+        submission.persistAndFlush();
 
-        ContentSubmission result = contentGraph.markAsProcessed(new MarkAsProcessed(1L));
+        // Act
+        ContentSubmission result = contentGraph.markAsProcessed(new MarkAsProcessed(submission.id));
 
-        assertEquals(contentSubmission, result);
-        verify(contentSubmissions).markAsProcessed(eq(1L));
+        // Assert
+        assertNotNull(result);
+        assertEquals(SubmissionStatus.PROCESSED, result.status);
+        assertNotNull(result.dateModified);
     }
 
     @Test
     @Transactional
     public void canCreatePodcastEpisode() {
         // Arrange
-        PodcastEpisode expectedEpisode = new PodcastEpisode(
-                "Test Episode",
-                "src/test/resources/audio/joop-fragment-01.mp3",
-                1,
-                "Test show notes",
-                "Test description");
-
-        when(contentSubmissions.createPodcastEpisode(
-                anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(expectedEpisode);
-
         CreatePodcastEpisode input = new CreatePodcastEpisode(
-                "src/test/resources/audio/joop-fragment-01.mp3",
-                "Test Episode",
-                "Test show notes",
-                "Test description");
+                "episodes/test-episode.mp3",
+                "Weekly Tech Roundup #42",
+                "In this episode, we cover:\n• AI developments\n• Cloud computing trends\n• Software engineering best practices",
+                "This week we discuss the latest developments in technology including artificial intelligence breakthroughs, cloud computing innovations, and software engineering best practices that every developer should know.");
 
         // Act
         PodcastEpisode result = contentGraph.createPodcastEpisode(input);
 
         // Assert
-        assertEquals(expectedEpisode, result);
-        verify(contentSubmissions).createPodcastEpisode(
-                "src/test/resources/audio/joop-fragment-01.mp3",
-                "Test Episode",
-                "Test show notes",
-                "Test description");
+        assertNotNull(result);
+        assertEquals("Weekly Tech Roundup #42", result.title);
+        assertEquals("episodes/test-episode.mp3", result.audioFilePath);
+        assertEquals(
+                "In this episode, we cover:\n• AI developments\n• Cloud computing trends\n• Software engineering best practices",
+                result.showNotes);
+        assertEquals(
+                "This week we discuss the latest developments in technology including artificial intelligence breakthroughs, cloud computing innovations, and software engineering best practices that every developer should know.",
+                result.description);
+        assertNotNull(result.dateCreated);
+        assertNotNull(result.episodeNumber);
+    }
+
+    @Test
+    @Transactional
+    public void canFindEpisodes() {
+        // Arrange - Create test episodes
+        PodcastEpisode episode1 = new TestObjectFactory.PodcastEpisodeBuilder()
+                .withTitle("Tech Talk #1")
+                .withEpisodeNumber(1)
+                .build();
+        PodcastEpisode episode2 = new TestObjectFactory.PodcastEpisodeBuilder()
+                .withTitle("Tech Talk #2")
+                .withEpisodeNumber(2)
+                .build();
+
+        episode1.persistAndFlush();
+        episode2.persistAndFlush();
+
+        // Act
+        List<PodcastEpisode> result = contentGraph.episodes();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    @Transactional
+    public void canGetStatistics() {
+        // Arrange - Create test data
+        ContentSubmission submission = TestObjectFactory.createSummarizedContentSubmission();
+        PodcastEpisode episode = TestObjectFactory.createTechTalkEpisode();
+
+        submission.persistAndFlush();
+        episode.persistAndFlush();
+
+        // Act
+        var result = contentGraph.statistics();
+
+        // Assert
+        assertNotNull(result);
+        assertNotNull(result.totalEpisodes);
+        assertNotNull(result.submissionsLastWeek);
+    }
+
+    @Test
+    @Transactional
+    public void demonstrateTestObjectFactoryUsage() {
+        // Object Mother pattern - predefined objects with sensible defaults
+        ContentSubmission submission1 = TestObjectFactory.createSummarizedContentSubmission();
+        ContentSubmission submission2 = TestObjectFactory.createProcessableSubmission();
+
+        // Test Data Builder pattern - customized objects
+        ContentSubmission customSubmission = new ContentSubmission.Builder()
+                .withUrl("https://custom.example.com/article")
+                .withTitle("Custom Article Title")
+                .withSummary("Custom summary content")
+                .withStatus(SubmissionStatus.PROCESSING)
+                .build();
+
+        PodcastEpisode episode = new TestObjectFactory.PodcastEpisodeBuilder()
+                .withTitle("Custom Episode")
+                .withEpisodeNumber(42)
+                .withShowNotes("Custom show notes")
+                .build();
+
+        // Persist test data
+        submission1.persistAndFlush();
+        submission2.persistAndFlush();
+        customSubmission.persistAndFlush();
+        episode.persistAndFlush();
+
+        // Verify objects were created with expected values
+        assertEquals("https://custom.example.com/article", customSubmission.url);
+        assertEquals("Custom Article Title", customSubmission.title);
+        assertEquals("Custom summary content", customSubmission.summary);
+        assertEquals(SubmissionStatus.PROCESSING, customSubmission.status);
+
+        assertEquals("Custom Episode", episode.title);
+        assertEquals(42, episode.episodeNumber);
+        assertEquals("Custom show notes", episode.showNotes);
+        assertNotNull(episode.audioFilePath);
+        assertNotNull(episode.description);
     }
 }

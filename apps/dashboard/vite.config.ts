@@ -1,14 +1,11 @@
+import houdini from "houdini/vite";
 import tailwindcss from '@tailwindcss/vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [
-		tailwindcss(),
-		sveltekit(),
-		devtoolsJson()
-	],
+	plugins: [houdini(), tailwindcss(), sveltekit(), devtoolsJson()],
 	test: {
 		projects: [
 			{

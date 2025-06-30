@@ -7,7 +7,15 @@ declare global {
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
+
+		interface Locals {
+			accessToken?: string;
+		}
+
+		interface Session extends DefaultSession {
+			accessToken?: string;
+		}
 	}
 }
 
-export {};
+export { };

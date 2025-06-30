@@ -1,0 +1,10 @@
+query ContentQuery($pageIndex: Int!, $pageSize:Int!) {
+  submissions(pageIndex:$pageIndex, pageSize:$pageSize) {
+    id
+    title
+    url
+    summary
+    dateCreated
+    status
+  }
+}
